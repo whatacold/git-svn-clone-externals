@@ -98,8 +98,7 @@ function is_excluded()
     return
 }
 
-
-git svn show-externals | grep -vE '#|^$' | \
+git svn show-externals | grep -vE '^$' | \
     sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/' | \
     while read svn_externals
 do
@@ -107,16 +106,21 @@ do
     number_fields="$(echo ${svn_externals}|awk '{print NF}')"
     case $number_fields in
         2)
-            local_directory="$(echo ${svn_externals} | awk '{print $1}' | sed 's,^/,,')"
-            revision=""
-            remote_url="$(echo ${svn_externals} | awk '{print $2}')"
+            if echo ${svn_externals} | grep -q '^#'; then
+                prefix="$(echo ${svn_externals} | awk '{print $2}')"
+            else
+                local_directory="$(echo ${svn_externals} | awk '{print ${prefix}$2}' | sed 's,^/,,')"
+                revision=""
+                remote_url="$(echo ${svn_externals} | awk '{print $1}' | sed 's,^${prefix},,')"
+            fi
             ;;
         3)
             local_directory="$(echo ${svn_externals} | awk '{print $1}' | sed 's,^/,,')"
             revision=""$(echo ${svn_externals} | awk '{print $2}')
             remote_url="$(echo ${svn_externals} | awk '{print $3}')"
             ;;
-        *) continue ;;
+        *)
+            continue ;;
     esac
 
     check_excluded=$(is_excluded $local_directory)
