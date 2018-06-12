@@ -52,7 +52,8 @@ function do_clone()
             full_branch_name="$(echo ${full_branch_name}|sed 's,/$,,')"
             if [ -n "$full_branch_name" ]; then
                 cd "$local_directory"
-                call git reset --hard $full_branch_name
+                # XXX for what? comment it out currently.
+                # call git reset --hard $full_branch_name
             fi
         )
     )
