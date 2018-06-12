@@ -63,11 +63,12 @@ function do_link()
 {
     local symbolic_dir="$1"
     local symbolic_base_dir="$(dirname $symbolic_dir)"
+    local symbolic_base_name="$(basename $symbolic_dir)"
     (
         mkdir -p "$symbolic_base_dir"
         cd $symbolic_base_dir
         local toplevel_rel_path=$(git rev-parse --show-cdup)
-        ln -sf ${local toplevel_rel_path}.git_externals/"$symbolic_dir"
+        ln -sf ${toplevel_rel_path}.git_externals/$symbolic_dir
     )
 }
 
