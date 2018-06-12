@@ -20,8 +20,8 @@ function call()
 function do_clone()
 {
     test -d $EXTERNAL_REPO_DIR || return 1
-    repo_base_url=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
-    full_branch_name=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
+    repo_base_url=`echo $remote_url|sed 's,\(.*\)\(/trunk.*\|/branch.*\|/tag.*\),\1,'`
+    full_branch_name=`echo $remote_url|sed 's,\(.*\)\(/trunk.*\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
     if [[ $full_branch_name = $remote_url ]]; then
         full_branch_name=""
     fi
@@ -109,9 +109,9 @@ do
             if echo ${svn_externals} | grep -q '^#'; then
                 prefix="$(echo ${svn_externals} | awk '{print $2}')"
             else
-                local_directory="$(echo ${svn_externals} | awk '{print ${prefix}$2}' | sed 's,^/,,')"
+                local_directory=$(echo ${svn_externals} | awk '{print $2}' | sed "s,^/,${prefix},;s,^/,,")
                 revision=""
-                remote_url="$(echo ${svn_externals} | awk '{print $1}' | sed 's,^${prefix},,')"
+                remote_url=$(echo ${svn_externals} | awk '{print $1}' | sed "s,^${prefix},,")
             fi
             ;;
         3)
