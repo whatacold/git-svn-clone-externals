@@ -2,6 +2,9 @@
 
 set -e
 
+EXTERNAL_REPO_DIR=".git_externals"
+EXCLUSIVE_EXTERNAL_FILE=".git_externals_exclude"
+
 toplevel_directory="$(git rev-parse --show-cdup)"
 [ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
 
@@ -16,14 +19,14 @@ function call()
 
 function do_clone()
 {
-    test -d .git_externals || return 1
-    module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
-    branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
-    if [[ $branch = $remote_url ]]; then
-        branch=""
+    test -d $EXTERNAL_REPO_DIR || return 1
+    repo_base_url=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
+    full_branch_name=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
+    if [[ $full_branch_name = $remote_url ]]; then
+        full_branch_name=""
     fi
      (
-        cd .git_externals
+        cd $EXTERNAL_REPO_DIR
         if [ -d "$local_directory" ]; then
             (
                 cd "$local_directory"
@@ -31,25 +34,25 @@ function do_clone()
             )
         else
             tags="tags"
-            brch="branches"
-            branchpath=$(echo $branch|cut -f1 -d/)
-            echo $tags|grep $branchpath >/dev/null 2>&1 && tags=$branchpath
-            echo $brch|grep $branchpath >/dev/null 2>&1 && brch=$branchpath
+            branches="branches"
+            branch_type=$(echo $full_branch_name|cut -f1 -d/)
+            echo $tags|grep $branch_type >/dev/null 2>&1 && tags=$branch_type
+            echo $branches|grep $branch_type >/dev/null 2>&1 && branches=$branch_type
 
-            if [ "$module" = "$remote_url" ]; then
+            if [ "$repo_base_url" = "$remote_url" ]; then
                 # URL does not contains any trunk, branches or tags part, so we dont need
                 # additional options for git-svn
-                call git svn clone "$revision" "$module" "$local_directory"
+                call git svn clone "$revision" "$repo_base_url" "$local_directory"
             else
-                call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
+                call git svn clone "$revision" "$repo_base_url" -T trunk -b $branches -t $tags "$local_directory"
             fi
 
         fi
         (
-            branch="$(echo ${branch}|sed 's,/$,,')"
-            if [ -n "$branch" ]; then
+            full_branch_name="$(echo ${full_branch_name}|sed 's,/$,,')"
+            if [ -n "$full_branch_name" ]; then
                 cd "$local_directory"
-                call git reset --hard $branch
+                call git reset --hard $full_branch_name
             fi
         )
     )
@@ -57,36 +60,36 @@ function do_clone()
 
 function do_link()
 {
-    dir="$1"
-    base="$(dirname $dir)"
+    local symbolic_dir="$1"
+    local symbolic_base_dir="$(dirname $symbolic_dir)"
     (
-        mkdir -p "$base"
-        cd $base
-        rel=$(git rev-parse --show-cdup)
-        ln -sf ${rel}.git_externals/"$dir"
+        mkdir -p "$symbolic_base_dir"
+        cd $symbolic_base_dir
+        local toplevel_rel_path=$(git rev-parse --show-cdup)
+        ln -sf ${local toplevel_rel_path}.git_externals/"$symbolic_dir"
     )
 }
 
 function do_excludes()
 {
-    dir="$1"
-    git_excludes_path=.git/info/exclude
+    local symbolic_dir="$1"
+    local git_excludes_path=.git/info/exclude
     if ! grep -q '^.git_externals$' "$git_excludes_path"
     then
-        echo .git_externals >> "$git_excludes_path"
+        echo $EXTERNAL_REPO_DIR >> "$git_excludes_path"
     fi
 
-    if ! grep -q '^'"$dir"'$' "$git_excludes_path"
+    if ! grep -q '^'"$symbolic_dir"'$' "$git_excludes_path"
     then
-        echo "$dir" >> "$git_excludes_path"
+        echo "$symbolic_dir" >> "$git_excludes_path"
     fi
 }
 
 function is_excluded()
 {
     local result=0
-    if [ -f .git_externals_exclude ] ; then
-        matches=`grep -v "^#" .git_externals_exclude|grep "^/$1$"|wc -l`
+    if [ -f $EXCLUSIVE_EXTERNAL_FILE ] ; then
+        matches=`grep -v "^#" $EXCLUSIVE_EXTERNAL_FILE|grep "^/$1$"|wc -l`
         if [ $matches -gt 0 ] ; then
             local result=1
         fi
